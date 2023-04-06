@@ -26,12 +26,7 @@ struct Quadratic {
         uint64_t index = start, dist = 0;
         while(data[index].key < DELETED) {
             dist++;
-            index = (start + dist * dist) & (capacity - 1);
-            if(index == start) {
-                grow();
-                insert(key, value);
-                return;
-            }
+            index = (index + dist) & (capacity - 1);
         }
         data[index].key = key;
         data[index].value = value;
@@ -48,7 +43,7 @@ struct Quadratic {
                 return data[index].value;
             }
             dist++;
-            index = (start + dist * dist) & (capacity - 1);
+            index = (index + dist) & (capacity - 1);
         }
     }
 
@@ -60,7 +55,7 @@ struct Quadratic {
             if(dist++ == capacity) return false;
             if(data[index].key == key) return true;
             (*steps)++;
-            index = (start + dist * dist) & (capacity - 1);
+            index = (index + dist) & (capacity - 1);
         }
         return false;
     }
@@ -78,7 +73,7 @@ struct Quadratic {
                 return;
             }
             dist++;
-            index = (start + dist * dist) & (capacity - 1);
+            index = (index + dist) & (capacity - 1);
         }
     }
 
@@ -132,7 +127,7 @@ struct Quadratic {
                 return data[index].value;
             }
             dist++;
-            index = (start + dist * dist) & (capacity - 1);
+            index = (index + dist) & (capacity - 1);
         }
     }
 

@@ -453,12 +453,18 @@ int main(int argc, char** argv) {
                "all_structure_aware"
             << std::endl;
         for(auto& b : run) {
-            if(benchmarks.find(b) != benchmarks.end()) { benchmarks[b](b, out); }
+            if(benchmarks.find(b) != benchmarks.end()) { 
+                std::cout << "Running " << b << "..." << std::endl;
+                benchmarks[b](b, out); 
+            }
         }
     } else {
         for(auto& b : run) {
             std::cout << "Benchmark: " << b << std::endl;
-            if(benchmarks.find(b) != benchmarks.end()) { benchmarks[b](b, std::cout); }
+            if(benchmarks.find(b) != benchmarks.end()) { 
+                std::cout << "Running " << b << "..." << std::endl;
+                benchmarks[b](b, std::cout); 
+            }
             std::cout << std::endl;
         }
     }
