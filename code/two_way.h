@@ -17,10 +17,9 @@ struct Two_Way {
 
     // assumes key is not in the map
     void insert(uint64_t key, uint64_t value) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
         uint64_t n_1 = 0;
@@ -43,10 +42,9 @@ struct Two_Way {
     }
 
     uint64_t find(uint64_t key, uint64_t* steps) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
         for(uint64_t i = 0;; i++) {
@@ -58,10 +56,9 @@ struct Two_Way {
     }
 
     bool contains(uint64_t key, uint64_t* steps) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
         for(uint64_t i = 0; i < BUCKET && (slot_1->keys[i] != EMPTY || 
@@ -75,10 +72,9 @@ struct Two_Way {
     }
 
     void erase(uint64_t key) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
         for(uint64_t i = 0;; i++) {
@@ -101,7 +97,6 @@ struct Two_Way {
                 return;
             }
         }
-        assert(false);
     }
 
     void grow() {
@@ -126,24 +121,22 @@ struct Two_Way {
     }
 
     uint64_t index_for(uint64_t key) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        return index_1;
+        uint64_t hash = squirrel3(key);
+        return hash;
     }
     uint64_t prefetch(uint64_t key) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         ::prefetch(data[index_1].keys);
         ::prefetch(data[index_1].values);
         ::prefetch(data[index_2].keys);
         ::prefetch(data[index_2].values);
-        return index_1;
+        return hash;
     }
-    uint64_t find_indexed(uint64_t key, uint64_t index_1, uint64_t* steps) {
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+    uint64_t find_indexed(uint64_t key, uint64_t hash, uint64_t* steps) {
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
         for(uint64_t i = 0;; i++) {
@@ -152,8 +145,6 @@ struct Two_Way {
             if(slot_2->keys[i] == key) return slot_2->values[i];
             (*steps)++;
         }
-        assert(false);
-        return 0;
     }
 
     uint64_t size() { return size_; }

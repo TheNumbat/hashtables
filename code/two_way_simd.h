@@ -51,10 +51,9 @@ struct Two_Way_SIMD {
 
     // assumes key is not in the map
     void insert(uint64_t key, uint64_t value) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
         __m256i cmp_1 = _mm256_cmpeq_epi64(slot_1->keys, EMPTY256);
@@ -80,8 +79,8 @@ struct Two_Way_SIMD {
 
     uint64_t find(uint64_t key, uint64_t* steps) {
         __m256i key256 = _mm256_set1_epi64x(key);
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         __m256i cmp_1 = _mm256_cmpeq_epi64(slot_1->keys, key256);
         int32_t mask_1 = _mm256_movemask_epi8(cmp_1);
@@ -90,30 +89,24 @@ struct Two_Way_SIMD {
             return __extract(slot_1->values, i);
         }
         (*steps)++;
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_2 = &data[index_2];
         __m256i cmp_2 = _mm256_cmpeq_epi64(slot_2->keys, key256);
         int32_t mask_2 = _mm256_movemask_epi8(cmp_2);
-        if(mask_2) {
-            int i = __ctz(mask_2) >> 3;
-            return __extract(slot_2->values, i);
-        }
-        assert(false);
-        return 0;
+        int i = __ctz(mask_2) >> 3;
+        return __extract(slot_2->values, i);
     }
 
     bool contains(uint64_t key, uint64_t* steps) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         __m256i key256 = _mm256_set1_epi64x(key);
         __m256i cmp_1 = _mm256_cmpeq_epi64(slot_1->keys, key256);
         int32_t mask_1 = _mm256_movemask_epi8(cmp_1);
         if(mask_1) { return true; }
         (*steps)++;
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_2 = &data[index_2];
         __m256i cmp_2 = _mm256_cmpeq_epi64(slot_2->keys, key256);
         int32_t mask_2 = _mm256_movemask_epi8(cmp_2);
@@ -123,8 +116,8 @@ struct Two_Way_SIMD {
 
     void erase(uint64_t key) {
         __m256i key256 = _mm256_set1_epi64x(key);
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         __m256i cmp_1 = _mm256_cmpeq_epi64(slot_1->keys, key256);
         int32_t mask_1 = _mm256_movemask_epi8(cmp_1);
@@ -138,22 +131,17 @@ struct Two_Way_SIMD {
             size_--;
             return;
         }
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_2 = &data[index_2];
         __m256i cmp_2 = _mm256_cmpeq_epi64(slot_2->keys, key256);
         int32_t mask_2 = _mm256_movemask_epi8(cmp_2);
-        if(mask_2) {
-            int i = __ctz(mask_2) / 8;
-            for(int j = i; j < BUCKET - 1; j++) {
-                __insert(slot_2->keys, __extract(slot_2->keys, j + 1), j);
-                __insert(slot_2->values, __extract(slot_2->values, j + 1), j);
-            }
-            __insert(slot_2->keys, EMPTY, BUCKET - 1);
-            size_--;
-            return;
+        int i = __ctz(mask_2) / 8;
+        for(int j = i; j < BUCKET - 1; j++) {
+            __insert(slot_2->keys, __extract(slot_2->keys, j + 1), j);
+            __insert(slot_2->values, __extract(slot_2->values, j + 1), j);
         }
-        assert(false);
+        __insert(slot_2->keys, EMPTY, BUCKET - 1);
+        size_--;
     }
 
     void grow() {
@@ -182,22 +170,21 @@ struct Two_Way_SIMD {
     }
 
     uint64_t index_for(uint64_t key) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        return index_1;
+        uint64_t hash = squirrel3(key);
+        return hash;
     }
     uint64_t prefetch(uint64_t key) {
-        uint64_t hash_1 = squirrel3(key);
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_1 = hash_1 & (capacity - 1);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t hash = squirrel3(key);
+        uint64_t index_1 = hash & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         ::prefetch(&data[index_1].keys);
         ::prefetch(&data[index_2].values);
         ::prefetch(&data[index_1].keys);
         ::prefetch(&data[index_2].values);
-        return index_1;
+        return hash;
     }
-    uint64_t find_indexed(uint64_t key, uint64_t index_1, uint64_t* steps) {
+    uint64_t find_indexed(uint64_t key, uint64_t hash, uint64_t* steps) {
+        uint64_t index_1 = hash & (capacity - 1);
         __m256i key256 = _mm256_set1_epi64x(key);
         Slot* slot_1 = &data[index_1];
         __m256i cmp_1 = _mm256_cmpeq_epi64(slot_1->keys, key256);
@@ -207,17 +194,12 @@ struct Two_Way_SIMD {
             return __extract(slot_1->values, i);
         }
         (*steps)++;
-        uint64_t hash_2 = squirrel3_2(key);
-        uint64_t index_2 = hash_2 & (capacity - 1);
+        uint64_t index_2 = (hash >> 32) & (capacity - 1);
         Slot* slot_2 = &data[index_2];
         __m256i cmp_2 = _mm256_cmpeq_epi64(slot_2->keys, key256);
         int32_t mask_2 = _mm256_movemask_epi8(cmp_2);
-        if(mask_2) {
-            int i = __ctz(mask_2) >> 3;
-            return __extract(slot_2->values, i);
-        }
-        assert(false);
-        return 0;
+        int i = __ctz(mask_2) >> 3;
+        return __extract(slot_2->values, i);
     }
 
     uint64_t size() { return size_; }

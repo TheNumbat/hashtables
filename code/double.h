@@ -19,14 +19,18 @@ struct Double {
     }
     ~Double() { __aligned_free(data); }
 
+    uint64_t hash_to_step(uint64_t hash) {
+        // always odd -> coprime to power-of-two capacity -> hits every slot
+        return (hash >> 32) | 1;
+    }
+
     // assumes key is not in the map
     void insert(uint64_t key, uint64_t value) {
         if(size_ >= capacity * LF) grow();
         uint64_t hash = squirrel3(key);
         uint64_t index = hash & (capacity - 1);
         if(data[index].key < DELETED) {
-            // always odd -> coprime to power-of-two capacity -> hits every slot
-            uint64_t step = squirrel3_odd(key);
+            uint64_t step = hash_to_step(hash);
             while(data[index].key < DELETED) { index = (index + step) & (capacity - 1); }
         }
         data[index].key = key;
@@ -37,8 +41,7 @@ struct Double {
     uint64_t find(uint64_t key, uint64_t* steps) {
         uint64_t hash = squirrel3(key);
         uint64_t index = hash & (capacity - 1);
-        if(data[index].key == key) return data[index].value;
-        uint64_t step = squirrel3_odd(key);
+        uint64_t step = hash_to_step(hash);
         for(;;) {
             if(data[index].key == key) return data[index].value;
             (*steps)++;
@@ -49,8 +52,7 @@ struct Double {
     bool contains(uint64_t key, uint64_t* steps) {
         uint64_t hash = squirrel3(key);
         uint64_t index = hash & (capacity - 1);
-        if(data[index].key == key) return true;
-        uint64_t step = squirrel3_odd(key), dist = 0;
+        uint64_t step = hash_to_step(hash), dist = 0;
         while(data[index].key < EMPTY) {
             if(dist++ == capacity) return false;
             if(data[index].key == key) return true;
@@ -63,14 +65,7 @@ struct Double {
     void erase(uint64_t key) {
         uint64_t hash = squirrel3(key);
         uint64_t index = hash & (capacity - 1);
-        if(data[index].key == key) {
-            data[index].key = DELETED;
-            size_--;
-            deleted_++;
-            if(deleted_ >= capacity * DF) rehash();
-            return;
-        }
-        uint64_t step = squirrel3_odd(key);
+        uint64_t step = hash_to_step(hash);
         for(;;) {
             if(data[index].key == key) {
                 data[index].key = DELETED;
@@ -117,17 +112,17 @@ struct Double {
 
     uint64_t index_for(uint64_t key) {
         uint64_t hash = squirrel3(key);
-        uint64_t index = hash & (capacity - 1);
-        return index;
+        return hash;
     }
     uint64_t prefetch(uint64_t key) {
-        uint64_t index = index_for(key);
+        uint64_t hash = squirrel3(key);
+        uint64_t index = hash & (capacity - 1);
         ::prefetch(&data[index]);
-        return index;
+        return hash;
     }
-    uint64_t find_indexed(uint64_t key, uint64_t index, uint64_t* steps) {
-        if(data[index].key == key) return data[index].value;
-        uint64_t step = squirrel3_odd(key);
+    uint64_t find_indexed(uint64_t key, uint64_t hash, uint64_t* steps) {
+        uint64_t index = hash & (capacity - 1);
+        uint64_t step = hash_to_step(hash);
         for(;;) {
             if(data[index].key == key) return data[index].value;
             (*steps)++;
