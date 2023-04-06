@@ -25,8 +25,8 @@ struct Two_Way {
         Slot* slot_2 = &data[index_2];
         uint64_t n_1 = 0;
         uint64_t n_2 = 0;
-        while(slot_1->keys[n_1] < EMPTY && n_1 < BUCKET) n_1++;
-        while(slot_2->keys[n_2] < EMPTY && n_2 < BUCKET) n_2++;
+        while(slot_1->keys[n_1] < EMPTY && ++n_1 < BUCKET);
+        while(slot_2->keys[n_2] < EMPTY && ++n_2 < BUCKET);
         if(n_1 == BUCKET && n_2 == BUCKET) {
             grow();
             insert(key, value);
@@ -49,14 +49,12 @@ struct Two_Way {
         uint64_t index_2 = hash_2 & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
-        for(uint64_t i = 0; i < BUCKET; i++) {
+        for(uint64_t i = 0;; i++) {
             if(slot_1->keys[i] == key) return slot_1->values[i];
             (*steps)++;
             if(slot_2->keys[i] == key) return slot_2->values[i];
             (*steps)++;
         }
-        assert(false);
-        return 0;
     }
 
     bool contains(uint64_t key, uint64_t* steps) {
@@ -66,8 +64,8 @@ struct Two_Way {
         uint64_t index_2 = hash_2 & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
-        for(uint64_t i = 0; i < BUCKET && (slot_1->keys[i] < EMPTY || slot_2->keys[i] < EMPTY);
-            i++) {
+        for(uint64_t i = 0; i < BUCKET && (slot_1->keys[i] != EMPTY || 
+                                           slot_2->keys[i] != EMPTY); i++) {
             if(slot_1->keys[i] == key) return true;
             (*steps)++;
             if(slot_2->keys[i] == key) return true;
@@ -83,8 +81,7 @@ struct Two_Way {
         uint64_t index_2 = hash_2 & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
-        for(uint64_t i = 0; i < BUCKET && (slot_1->keys[i] < EMPTY || slot_2->keys[i] < EMPTY);
-            i++) {
+        for(uint64_t i = 0;; i++) {
             if(slot_1->keys[i] == key) {
                 for(uint64_t j = i; j < BUCKET - 1; j++) {
                     slot_1->keys[j] = slot_1->keys[j + 1];
@@ -149,7 +146,7 @@ struct Two_Way {
         uint64_t index_2 = hash_2 & (capacity - 1);
         Slot* slot_1 = &data[index_1];
         Slot* slot_2 = &data[index_2];
-        for(uint64_t i = 0; i < BUCKET; i++) {
+        for(uint64_t i = 0;; i++) {
             if(slot_1->keys[i] == key) return slot_1->values[i];
             (*steps)++;
             if(slot_2->keys[i] == key) return slot_2->values[i];
@@ -167,7 +164,7 @@ struct Two_Way {
         uint64_t sum = 0;
         for(uint64_t i = 0; i < capacity; i++) {
             Slot* slot = &data[i];
-            for(uint64_t j = 0; j < BUCKET && slot->keys[j] < EMPTY; j++) {
+            for(uint64_t j = 0; j < BUCKET && slot->keys[j] != EMPTY; j++) {
                 sum += slot->values[j];
             }
         }
