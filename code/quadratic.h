@@ -22,8 +22,7 @@ struct Quadratic {
     void insert(uint64_t key, uint64_t value) {
         if(size_ >= capacity * LF) grow();
         uint64_t hash = squirrel3(key);
-        uint64_t start = hash & (capacity - 1);
-        uint64_t index = start, dist = 0;
+        uint64_t index = hash & (capacity - 1), dist = 0;
         while(data[index].key < DELETED) {
             dist++;
             index = (index + dist) & (capacity - 1);
@@ -35,8 +34,7 @@ struct Quadratic {
 
     uint64_t find(uint64_t key, uint64_t* steps) {
         uint64_t hash = squirrel3(key);
-        uint64_t start = hash & (capacity - 1);
-        uint64_t index = start, dist = 0;
+        uint64_t index = hash & (capacity - 1), dist = 0;
         for(;;) {
             if(data[index].key == key) {
                 *steps = dist;
@@ -49,8 +47,7 @@ struct Quadratic {
 
     bool contains(uint64_t key, uint64_t* steps) {
         uint64_t hash = squirrel3(key);
-        uint64_t start = hash & (capacity - 1);
-        uint64_t index = start, dist = 0;
+        uint64_t index = hash & (capacity - 1), dist = 0;
         while(data[index].key < EMPTY) {
             if(dist++ == capacity) return false;
             if(data[index].key == key) return true;
@@ -62,8 +59,7 @@ struct Quadratic {
 
     void erase(uint64_t key) {
         uint64_t hash = squirrel3(key);
-        uint64_t start = hash & (capacity - 1);
-        uint64_t index = start, dist = 0;
+        uint64_t index = hash & (capacity - 1), dist = 0;
         for(;;) {
             if(data[index].key == key) {
                 data[index].key = DELETED;
@@ -119,8 +115,8 @@ struct Quadratic {
         ::prefetch(&data[index]);
         return index;
     }
-    uint64_t find_indexed(uint64_t key, uint64_t start, uint64_t* steps) {
-        uint64_t index = start, dist = 0;
+    uint64_t find_indexed(uint64_t key, uint64_t index, uint64_t* steps) {
+        uint64_t dist = 0;
         for(;;) {
             if(data[index].key == key) {
                 *steps = dist;
