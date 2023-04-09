@@ -178,8 +178,8 @@ struct Two_Way_SIMD {
         uint64_t index_1 = hash & (capacity - 1);
         uint64_t index_2 = (hash >> 32) & (capacity - 1);
         ::prefetch(&data[index_1].keys);
-        ::prefetch(&data[index_2].values);
-        ::prefetch(&data[index_1].keys);
+        ::prefetch(&data[index_1].values);
+        ::prefetch(&data[index_2].keys);
         ::prefetch(&data[index_2].values);
         return hash;
     }
